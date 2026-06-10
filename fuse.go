@@ -1053,7 +1053,7 @@ func (self *CellsFuse) Readdir(path string, fill func(name string, stat *fuse.St
 	}
 
 	// We use a local map to collect results before updating the main cache
-	children := make(map[string]*fuse.Stat_t)
+	children := make(map[string]*fuse.Stat_t, len(result.Payload.Nodes))
 	var mu sync.Mutex                            // Protects the 'children' map during concurrent writes
 	var wg sync.WaitGroup                        // Waits for all goroutines to finish
 	semaphore := make(chan struct{}, MaxWorkers) // Limits concurrency to MaxWorkers
