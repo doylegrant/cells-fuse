@@ -108,7 +108,6 @@ func StartOAuthFlow(instanceURL string, openBrowser func(authURL string)) (resul
 			}
 
 			fmt.Printf("DEBUG OAuth: Token received, length=%d\n", len(sdkConfig.IdToken))
-			fmt.Printf("DEBUG OAuth: Token prefix: %s...\n", sdkConfig.IdToken[:min(50, len(sdkConfig.IdToken))])
 			fmt.Printf("DEBUG OAuth: RefreshToken length=%d\n", len(sdkConfig.RefreshToken))
 			fmt.Printf("DEBUG OAuth: User=%s\n", sdkConfig.User)
 

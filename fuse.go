@@ -81,7 +81,7 @@ type CellsFuse struct {
 }
 
 func createApiClient(session AppSession) *apiV1Client.PydioCellsRestAPI {
-	Log(&session, "DEBUG | Creating API client with URL=%s, Token=%s...", session.AppUrl, session.AuthToken[:min(20, len(session.AuthToken))])
+	Log(&session, "DEBUG | Creating API client with URL=%s, Token length=%d", session.AppUrl, len(session.AuthToken))
 	conf := &apiv1.SdkConfig{
 		Url:        session.AppUrl,
 		SkipVerify: false,
