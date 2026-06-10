@@ -1178,7 +1178,8 @@ func (self *CellsFuse) Read(path string, buff []byte, ofst int64, fh uint64) int
 		chunkIndex := currentOffset / self.readAheadSize
 		chunkOffset := chunkIndex * self.readAheadSize
 		// Use null byte as separator to avoid collisions with filenames
-		cacheKey := fmt.Sprintf("%s\x00%d", internalPath, chunkIndex)
+		// Optimization: String concatenation is significantly faster than fmt.Sprintf in this hot path
+		cacheKey := internalPath + "\x00" + strconv.FormatInt(chunkIndex, 10)
 
 		var data []byte
 		if val, ok := self.readAheadCache.Get(cacheKey); ok {
