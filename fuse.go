@@ -368,7 +368,7 @@ func (self *CellsFuse) Create(path string, flags int, mode uint32) (int, uint64)
 	// 1. Create and open a local temporary file to hold the data while it's being written
 	tempPath := filepath.Join(os.TempDir(), "cells-"+url.PathEscape(internalPath))
 	self.Logger("PYDIO | temp file: " + tempPath)
-	f, err := os.OpenFile(tempPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0777)
+	f, err := os.OpenFile(tempPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 	if err != nil {
 		self.Logger("OS | " + err.Error())
 		return -int(fuse.EIO), 0
@@ -425,7 +425,7 @@ func (self *CellsFuse) Write(path string, buff []byte, ofst int64, fh uint64) in
 		// File handle not found - this shouldn't happen in normal operation
 		// Fall back to opening the file directly (for compatibility)
 		tempPath := filepath.Join(os.TempDir(), "cells-"+url.PathEscape(internalPath))
-		f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE, 0777)
+		f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
 			self.Logger("OS | Write fallback error: " + err.Error())
 			return -int(fuse.EIO)
@@ -923,7 +923,7 @@ func (self *CellsFuse) Open(path string, flags int) (int, uint64) {
 			openFlags |= os.O_TRUNC
 		}
 
-		f, err := os.OpenFile(tempPath, openFlags|os.O_CREATE, 0777)
+		f, err := os.OpenFile(tempPath, openFlags|os.O_CREATE, 0600)
 		if err != nil {
 			self.Logger("OS | Open error: " + err.Error())
 			return -int(fuse.EIO), 0
@@ -980,7 +980,7 @@ func (self *CellsFuse) Truncate(path string, size int64, fh uint64) int {
 	// Fall back to opening the file if no handle is available
 	tempPath := filepath.Join(os.TempDir(), "cells-"+url.PathEscape(internalPath))
 
-	f, err := os.OpenFile(tempPath, os.O_CREATE|os.O_RDWR, 0777)
+	f, err := os.OpenFile(tempPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		self.Logger("OS | Truncate Open Error: " + err.Error())
 		return -int(fuse.EIO)
