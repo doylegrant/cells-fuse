@@ -531,7 +531,7 @@ func (self *CellsFuse) Release(path string, fh uint64) int {
 
 	fileStat, err := self.uploadLocalToPydio(tempPath, internalPath)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Upload failed: %v\n", err))
+		self.Logger("Upload failed: %v\n", err)
 		return -int(fuse.EIO)
 	}
 
@@ -596,7 +596,7 @@ func (self *CellsFuse) Rename(oldpath string, newpath string) int {
 		// Check for local file presence. If found, we treat it as a local-to-remote upload (atomic rename)
 		localPath := filepath.Join(os.TempDir(), "cells-"+url.PathEscape(internalOld))
 		if _, err := os.Stat(localPath); err == nil {
-			self.Logger(fmt.Sprintf("Rename: Uploading local temp file %s to %s\n", oldpath, newpath))
+			self.Logger("Rename: Uploading local temp file %s to %s\n", oldpath, newpath)
 			fileStat, err := self.uploadLocalToPydio(localPath, internalNew)
 			if err != nil {
 				return -int(fuse.EIO)
@@ -639,7 +639,7 @@ func (self *CellsFuse) Rename(oldpath string, newpath string) int {
 
 	// If the file exists, we delete it so the rename can "overwrite" it
 	if err == nil && len(statResp.Payload.Nodes) > 0 {
-		self.Logger(fmt.Sprintf("Rename: target %s exists, deleting for atomic replace\n", newpath))
+		self.Logger("Rename: target %s exists, deleting for atomic replace\n", newpath)
 		if res := self.Unlink(internalNew); res != 0 {
 			return res
 		}
@@ -673,17 +673,17 @@ func (self *CellsFuse) Rename(oldpath string, newpath string) int {
 	// Ensure your JobsService is initialized and passing Auth
 	jobResp, err := self.JobsService.UserCreateJob(jobParams)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Failed to create move job: %v\n", err))
+		self.Logger("Failed to create move job: %v\n", err)
 		return -int(fuse.EIO)
 	}
 
 	jobID := jobResp.Payload.JobUUID
-	self.Logger(fmt.Sprintf("Move Job ID: %s started for %s -> %s\n", jobID, oldpath, newpath))
+	self.Logger("Move Job ID: %s started for %s -> %s\n", jobID, oldpath, newpath)
 
 	// 4. Poll for Completion
 	err = self.pollJobStatus(ctx, jobID)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Move job %s failed: %v\n", jobID, err))
+		self.Logger("Move job %s failed: %v\n", jobID, err)
 		return -int(fuse.EIO)
 	}
 
@@ -734,7 +734,7 @@ func (self *CellsFuse) Copy(oldpath string, newpath string) int {
 
 	jobResp, err := self.JobsService.UserCreateJob(jobParams)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Failed to create copy job: %v\n", err))
+		self.Logger("Failed to create copy job: %v\n", err)
 		return -int(fuse.EIO)
 	}
 
@@ -823,7 +823,7 @@ func (self *CellsFuse) Fsync(path string, datasync bool, fh uint64) int {
 	// 2. Perform an immediate S3 upload
 	_, err := self.uploadLocalToPydio(tempPath, internalPath)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Fsync Upload Failed for %s: %v\n", path, err))
+		self.Logger("Fsync Upload Failed for %s: %v\n", path, err)
 		return -int(fuse.EIO)
 	}
 
@@ -849,7 +849,7 @@ func (self *CellsFuse) Unlink(path string) int {
 	// 3. Execute the deletion via REST API
 	_, err := self.TreeService.DeleteNodes(params)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Delete Error for %s: %v\n", path, err))
+		self.Logger("Delete Error for %s: %v\n", path, err)
 		return -int(fuse.EIO)
 	}
 
@@ -877,7 +877,7 @@ func (self *CellsFuse) Rmdir(path string) int {
 
 	statResp, err := self.TreeService.BulkStatNodes(statParams)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Rmdir BulkStatNodes error for %s: %v\n", path, err))
+		self.Logger("Rmdir BulkStatNodes error for %s: %v\n", path, err)
 		return -int(fuse.EIO)
 	}
 
@@ -894,7 +894,7 @@ func (self *CellsFuse) Rmdir(path string) int {
 
 	_, err = self.TreeService.DeleteNodes(params)
 	if err != nil {
-		self.Logger(fmt.Sprintf("Rmdir Delete Error for %s: %v\n", path, err))
+		self.Logger("Rmdir Delete Error for %s: %v\n", path, err)
 		return -int(fuse.EIO)
 	}
 
@@ -1074,15 +1074,15 @@ func (self *CellsFuse) Readdir(path string, fill func(name string, stat *fuse.St
 
 	result, err := self.TreeService.BulkStatNodes(params)
 	if err != nil {
-		self.Logger(fmt.Sprintf("DEBUG Readdir: BulkStatNodes error for path %s: %v\n", path, err.Error()))
+		self.Logger("DEBUG Readdir: BulkStatNodes error for path %s: %v\n", path, err.Error())
 		return -fuse.EIO
 	}
 
 	// Check if the response contains an error
 	if result.Payload != nil {
-		self.Logger(fmt.Sprintf("DEBUG Readdir: Got %d nodes for path %s\n", len(result.Payload.Nodes), path))
+		self.Logger("DEBUG Readdir: Got %d nodes for path %s\n", len(result.Payload.Nodes), path)
 	} else {
-		self.Logger(fmt.Sprintf("DEBUG Readdir: Payload is nil for path %s\n", path))
+		self.Logger("DEBUG Readdir: Payload is nil for path %s\n", path)
 	}
 
 	// We use a local map to collect results before updating the main cache
@@ -1178,7 +1178,8 @@ func (self *CellsFuse) Read(path string, buff []byte, ofst int64, fh uint64) int
 		chunkIndex := currentOffset / self.readAheadSize
 		chunkOffset := chunkIndex * self.readAheadSize
 		// Use null byte as separator to avoid collisions with filenames
-		cacheKey := fmt.Sprintf("%s\x00%d", internalPath, chunkIndex)
+		// ⚡ Bolt: Fast cache key generation (avoids fmt.Sprintf allocations in hot path)
+		cacheKey := internalPath + "\x00" + strconv.FormatInt(chunkIndex, 10)
 
 		var data []byte
 		if val, ok := self.readAheadCache.Get(cacheKey); ok {
@@ -1199,7 +1200,15 @@ func (self *CellsFuse) Read(path string, buff []byte, ofst int64, fh uint64) int
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 			// Range is inclusive
-			byteRange := fmt.Sprintf("bytes=%d-%d", chunkOffset, chunkOffset+int64(len(data))-1)
+			// ⚡ Bolt: Fast byte range formatting
+			endOffset := chunkOffset + int64(len(data)) - 1
+			b := make([]byte, 0, 32)
+			b = append(b, "bytes="...)
+			b = strconv.AppendInt(b, chunkOffset, 10)
+			b = append(b, '-')
+			b = strconv.AppendInt(b, endOffset, 10)
+			byteRange := string(b)
+
 			input := &s3.GetObjectInput{
 				Bucket: aws.String("io"),
 				Key:    aws.String(internalPath),
@@ -1226,7 +1235,7 @@ func (self *CellsFuse) Read(path string, buff []byte, ofst int64, fh uint64) int
 			self.Logger("S3 FETCH: chunk=%d bytes=%d duration=%v", chunkIndex, n, fetchDuration)
 
 			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-				self.Logger(fmt.Sprintf("Body Read Error: %v\n", err))
+				self.Logger("Body Read Error: %v\n", err)
 				break
 			}
 
