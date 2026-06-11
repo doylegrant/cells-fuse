@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"strconv"
 )
 
 // PrefetchTask represents a single S3 range read request to be processed by the worker pool.
@@ -86,7 +87,8 @@ func (p *PrefetchWorkerPool) worker(id int) {
 // processPrefetchTask fetches a single chunk from S3 and caches it.
 // It uses activeSet for deduplication to avoid fetching the same chunk twice concurrently.
 func (p *PrefetchWorkerPool) processPrefetchTask(task PrefetchTask) {
-	cacheKey := fmt.Sprintf("%s\x00%d", task.Path, task.ChunkIndex)
+	// ⚡ Bolt: Fast cache key generation (avoids fmt.Sprintf allocations in hot path)
+	cacheKey := task.Path + "\x00" + strconv.FormatInt(task.ChunkIndex, 10)
 
 	// Skip if already cached
 	if _, exists := p.readAheadCache.Get(cacheKey); exists {
@@ -104,7 +106,15 @@ func (p *PrefetchWorkerPool) processPrefetchTask(task PrefetchTask) {
 	defer cancel()
 
 	chunkOffset := task.ChunkIndex * p.readAheadSize
-	byteRange := fmt.Sprintf("bytes=%d-%d", chunkOffset, chunkOffset+int64(len(data))-1)
+
+	// ⚡ Bolt: Fast byte range formatting
+	endOffset := chunkOffset + int64(len(data)) - 1
+	b := make([]byte, 0, 32)
+	b = append(b, "bytes="...)
+	b = strconv.AppendInt(b, chunkOffset, 10)
+	b = append(b, '-')
+	b = strconv.AppendInt(b, endOffset, 10)
+	byteRange := string(b)
 
 	output, err := p.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String("io"),
@@ -132,7 +142,8 @@ func (p *PrefetchWorkerPool) processPrefetchTask(task PrefetchTask) {
 // If the queue is full, the task is silently dropped (non-blocking). This prevents
 // unbounded queue growth under sustained high load.
 func (p *PrefetchWorkerPool) SubmitPrefetch(path string, chunkIndex int64) {
-	cacheKey := fmt.Sprintf("%s\x00%d", path, chunkIndex)
+	// ⚡ Bolt: Fast cache key generation (avoids fmt.Sprintf allocations in hot path)
+	cacheKey := path + "\x00" + strconv.FormatInt(chunkIndex, 10)
 
 	// Quick check: skip if already cached
 	if _, exists := p.readAheadCache.Get(cacheKey); exists {
