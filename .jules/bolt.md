@@ -1,3 +1,6 @@
 ## 2024-06-09 - FUSE path conversion allocation overhead
 **Learning:** In a FUSE filesystem, `toInternalPath` is called for almost every filesystem operation (via `beginOp` and explicitly). Using `strings.Split` and `strings.Join` for simple path modifications (handling workspace aliases and `.recycle_bin`) creates significant garbage and CPU overhead (9 allocations per call).
 **Action:** Replace slice-based string manipulation with string slicing and `strings.ReplaceAll` for `.recycle_bin` to minimize allocations in the hot path.
+## 2024-05-19 - Goroutine Overhead in Fast Loops
+**Learning:** In `fuse.go`'s `Readdir` function, parallelizing the processing of lightweight, CPU-bound operations (like parsing strings or simple map updates) using goroutines, waitgroups, and mutexes resulted in massive synchronization overhead (~800,000 ns/op vs ~40,000 ns/op). The sequential approach is vastly faster for operations that don't involve I/O or heavy computation.
+**Action:** Always evaluate whether loop bodies actually do enough work to justify the overhead of a goroutine and synchronization primitives before parallelizing. Prefer sequential execution for fast, CPU-bound parsing/transformations.
