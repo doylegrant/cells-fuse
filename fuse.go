@@ -1178,7 +1178,8 @@ func (self *CellsFuse) Read(path string, buff []byte, ofst int64, fh uint64) int
 		chunkIndex := currentOffset / self.readAheadSize
 		chunkOffset := chunkIndex * self.readAheadSize
 		// Use null byte as separator to avoid collisions with filenames
-		cacheKey := fmt.Sprintf("%s\x00%d", internalPath, chunkIndex)
+		// ⚡ Bolt Optimization: Use string concatenation instead of fmt.Sprintf in hot path
+		cacheKey := internalPath + "\x00" + strconv.FormatInt(chunkIndex, 10)
 
 		var data []byte
 		if val, ok := self.readAheadCache.Get(cacheKey); ok {
@@ -1199,7 +1200,8 @@ func (self *CellsFuse) Read(path string, buff []byte, ofst int64, fh uint64) int
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 			// Range is inclusive
-			byteRange := fmt.Sprintf("bytes=%d-%d", chunkOffset, chunkOffset+int64(len(data))-1)
+			// ⚡ Bolt Optimization: Use string concatenation instead of fmt.Sprintf in hot path
+			byteRange := "bytes=" + strconv.FormatInt(chunkOffset, 10) + "-" + strconv.FormatInt(chunkOffset+int64(len(data))-1, 10)
 			input := &s3.GetObjectInput{
 				Bucket: aws.String("io"),
 				Key:    aws.String(internalPath),
