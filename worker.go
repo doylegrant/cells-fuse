@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"sync"
 	"time"
 
@@ -86,7 +87,8 @@ func (p *PrefetchWorkerPool) worker(id int) {
 // processPrefetchTask fetches a single chunk from S3 and caches it.
 // It uses activeSet for deduplication to avoid fetching the same chunk twice concurrently.
 func (p *PrefetchWorkerPool) processPrefetchTask(task PrefetchTask) {
-	cacheKey := fmt.Sprintf("%s\x00%d", task.Path, task.ChunkIndex)
+	// ⚡ Bolt Optimization: Replace fmt.Sprintf with concatenation for speed
+	cacheKey := task.Path + "\x00" + strconv.FormatInt(task.ChunkIndex, 10)
 
 	// Skip if already cached
 	if _, exists := p.readAheadCache.Get(cacheKey); exists {
@@ -104,7 +106,8 @@ func (p *PrefetchWorkerPool) processPrefetchTask(task PrefetchTask) {
 	defer cancel()
 
 	chunkOffset := task.ChunkIndex * p.readAheadSize
-	byteRange := fmt.Sprintf("bytes=%d-%d", chunkOffset, chunkOffset+int64(len(data))-1)
+	// ⚡ Bolt Optimization: Replace fmt.Sprintf with concatenation for speed
+	byteRange := "bytes=" + strconv.FormatInt(chunkOffset, 10) + "-" + strconv.FormatInt(chunkOffset+int64(len(data))-1, 10)
 
 	output, err := p.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String("io"),
@@ -132,7 +135,8 @@ func (p *PrefetchWorkerPool) processPrefetchTask(task PrefetchTask) {
 // If the queue is full, the task is silently dropped (non-blocking). This prevents
 // unbounded queue growth under sustained high load.
 func (p *PrefetchWorkerPool) SubmitPrefetch(path string, chunkIndex int64) {
-	cacheKey := fmt.Sprintf("%s\x00%d", path, chunkIndex)
+	// ⚡ Bolt Optimization: Replace fmt.Sprintf with concatenation for speed
+	cacheKey := path + "\x00" + strconv.FormatInt(chunkIndex, 10)
 
 	// Quick check: skip if already cached
 	if _, exists := p.readAheadCache.Get(cacheKey); exists {
